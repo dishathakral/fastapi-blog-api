@@ -1,15 +1,19 @@
-from fastapi import FastAPI,status,HTTPException,Depends
+from fastapi import FastAPI
 from fastapi.params import Body
-from pydantic import BaseModel 
-from . import models,database_models,utils
-from .database import engine,get_db
-from typing import List
-from sqlalchemy.orm import Session
-from app. routers import posts,user,auth
-
-
+from .config import Settings
+from . import database_models
+from .database import engine
+from app. routers import posts,user,auth,votes
+from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
-database_models.Base.metadata.create_all(bind=engine)
+origins=["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    alLow_methods= ["*"],
+    allow_headers=["*"],)
+# database_models.Base.metadata.create_all(bind=engine)
 # try:
 #     conn=psycopg2.connect(host='localhost',database='postgres',password='anku9729',user='postgres',cursor_factory=RealDictCursor)
 #     print("database is succesfully connected!!")
@@ -31,6 +35,7 @@ database_models.Base.metadata.create_all(bind=engine)
 app.include_router(posts.router)
 app.include_router(user.router)
 app.include_router(auth.router)
+app.include_router(votes.router)
 @app.get("/")
 def read_root():
     return {"Hello": "World"}

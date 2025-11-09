@@ -1,6 +1,5 @@
 from typing import Optional
-from pydantic import BaseModel, Field,EmailStr
-
+from pydantic import BaseModel, Field,EmailStr,conint
 
 class Usercreate (BaseModel):
     email: EmailStr
@@ -22,13 +21,20 @@ class PostBase (BaseModel):
 
 class PostCreate(PostBase) :
     pass
+class PostOut(BaseModel):
+    title: str = Field(..., alias="name")
+    id: int
+    content: str
+    published: bool
+    owner_id: int
+    owner: Userout
+    class Config:
+        from_attributes = True
+        populate_by_name = True
 
 class PostResponse(BaseModel):
-    title: str = Field(..., alias="name")
-    content:str
-    published:bool
-    owner_id:int
-    owner:Userout
+    Post:PostOut
+    votes:int
     class Config:
         from_attributes = True
         populate_by_name = True
@@ -39,3 +45,9 @@ class Token(BaseModel):
     token_type: str
 class TokenData (BaseModel):
     id: Optional[int]    
+
+class vote(BaseModel):
+    post_id:int
+    dir:conint(ge=0, le=1) 
+    class Config:
+        from_attributes = True     

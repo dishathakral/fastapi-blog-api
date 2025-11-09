@@ -1,20 +1,16 @@
-from fastapi import FastAPI,status,HTTPException,Depends,APIRouter
+from fastapi import status,HTTPException,Depends,APIRouter
 from .. import database_models,models,oauth2
-from typing import List
+from typing import List, Optional
 from sqlalchemy.orm import Session
 from ..database import get_db
+from sqlalchemy import func
 
 router=APIRouter()
-@router.get("/posts",response_model=List[models.PostResponse])
-def get_posts(db: Session = Depends (get_db)):
-    # cursor.execute('''select * from posts''')
-    # post=cursor.fetchall()
-    post=db.query(database_models.Post).all()
-    return post
+
 
 @router.post("/posts",status_code=status.HTTP_201_CREATED)
 def create_post(post1:models.PostCreate,db:Session=Depends(get_db),current_user:int = Depends(oauth2.get_current_user)):
-    print(current_user.email)
+    print(current_user)
     new_entry=database_models.Post(**post1.dict(), owner_id=current_user.id)
     db.add(new_entry)
     db.commit()
@@ -24,15 +20,34 @@ def create_post(post1:models.PostCreate,db:Session=Depends(get_db),current_user:
     # conn.commit()
     return new_entry
 
+@router.get("/posts",response_model=List[models.PostResponse])
+@router.get("/posts")
+def get_posts(db: Session = Depends (get_db),limit : int=10,skip:int=0, search : Optional[str]=""):
+    # cursor.execute('''select * from posts''')
+    # post=cursor.fetchall()
+    # post=db.query(database_models.Post).filter(database_models.Post.title.contains(search)).limit(limit).offset(skip).all()
+    results=db.query(database_models.Post,func.count(database_models.Vote.user_id).label("vote_count")).join(database_models.Vote,database_models.Vote.post_id==database_models.Post.id,isouter=True).group_by(database_models.Post.id).all()
+    print(results)
+    return results
+
 @router.get("/posts/{id}",response_model=models.PostResponse)
 def get_post(id:int,db: Session = Depends (get_db)):
+
+
+    results = db.query(database_models.Post, func.count(database_models.Vote.user_id).label("vote_count")).join(
+        database_models.Vote, database_models.Vote.post_id == database_models.Post.id, isouter=True).group_by(
+        database_models.Post.id).filter(database_models.Post.id==id).first()
+
     recent_post=db.query(database_models.Post).filter(database_models.Post.id==id).first()
     # cursor.execute('''select * from posts where post_id=%s''',(id,))
     # recent_post=cursor.fetchone()
     if not recent_post:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,detail=f"post with id: {id} was not found")
-    print(recent_post)
-    return recent_post
+    print(results)
+    post, vote_count = results
+    print(post)
+    print(vote_count)
+    return {"Post":post, "votes": vote_count}
 
 @router.delete("/posts/{id}",status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(id:int,db: Session = Depends (get_db),user_id:int = Depends(oauth2.get_current_user)):
